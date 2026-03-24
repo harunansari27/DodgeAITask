@@ -8,16 +8,13 @@ import lombok.Data;
 
 @Entity
 @Data
-public class Invoice {
+public class Delivery {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String invoiceNumber;
+    private String deliveryNumber;
 
-    private Long deliveryId; // link to delivery
-
-    private String customerName;
-    private Double amount;
+    private Long orderId; // link to order
 }
