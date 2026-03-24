@@ -13,8 +13,8 @@ public class GraphController {
     @Autowired
     private GraphService graphService;
 
-    @GetMapping("/graph")
-    public GraphResponse getGraph() {
-        return graphService.getGraph();
-    }
+   @GetMapping("/graph/{invoiceNumber}")
+    public GraphResponse getGraph(@PathVariable String invoiceNumber) {
+    return graphService.getGraph(invoiceNumber);
+}
 }
