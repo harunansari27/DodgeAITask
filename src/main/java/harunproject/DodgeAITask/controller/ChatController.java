@@ -1,10 +1,12 @@
 package harunproject.DodgeAITask.controller;
 
 import org.springframework.web.bind.annotation.*;
-
 import harunproject.DodgeAITask.service.ChatService;
 
+import java.util.Map;
+
 @RestController
+@CrossOrigin(origins = "*")
 @RequestMapping("/api")
 public class ChatController {
 
@@ -15,7 +17,8 @@ public class ChatController {
     }
 
     @PostMapping("/chat")
-    public Object chat(@RequestBody String query) {
+    public Object chat(@RequestBody Map<String, String> body) {
+        String query = body.get("query");
         return chatService.processQuery(query);
     }
 }

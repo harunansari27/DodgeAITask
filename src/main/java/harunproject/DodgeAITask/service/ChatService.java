@@ -1,33 +1,54 @@
 package harunproject.DodgeAITask.service;
 
 import org.springframework.stereotype.Service;
-
 import java.util.*;
+import java.util.regex.*;
 
 @Service
 public class ChatService {
 
-    private final LLMService llmService;
-    private final QueryExecutionService queryExecutionService;
+    private final DataIngestionService dataService;
 
-    public ChatService(LLMService llmService, QueryExecutionService queryExecutionService) {
-        this.llmService = llmService;
-        this.queryExecutionService = queryExecutionService;
+    public ChatService(DataIngestionService dataService) {
+        this.dataService = dataService;
     }
 
-    public Object processQuery(String userQuery) {
+    public Object processQuery(String query) {
 
-        // Guardrail
-        if (!userQuery.toLowerCase().contains("invoice")) {
-            return "This system only answers dataset-related queries.";
+    if (query == null || query.trim().isEmpty()) {
+        return "Empty query";
+    }
+
+    // 🔥 Extract invoice number
+    java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\d{6,}");
+    java.util.regex.Matcher matcher = pattern.matcher(query);
+
+    if (matcher.find()) {
+
+        String invoiceNumber = matcher.group();
+
+        List<Map<String, Object>> invoices = dataService.loadInvoices();
+
+        for (Map<String, Object> inv : invoices) {
+
+            String id = String.valueOf(inv.get("billingDocument"));
+
+            if (invoiceNumber.equals(id)) {
+
+                Map<String, Object> result = new HashMap<>();
+
+                result.put("invoice", id);
+                result.put("customer", inv.get("soldToParty"));
+                result.put("amount", inv.get("totalNetAmount"));
+                result.put("payment", inv.get("accountingDocument"));
+
+                return result;
+            }
         }
 
-        // Step 1: LLM → SQL
-        String sql = llmService.generateSQL(userQuery);
-
-        // Step 2: Execute SQL
-        List<Map<String, Object>> result = queryExecutionService.executeQuery(sql);
-
-        return result;
+        return "❌ Invoice not found";
     }
+
+    return "This system is designed to answer dataset-related queries only.";
+}
 }

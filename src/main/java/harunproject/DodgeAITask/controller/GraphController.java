@@ -1,20 +1,29 @@
 package harunproject.DodgeAITask.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-
 import harunproject.DodgeAITask.dto.GraphResponse;
 import harunproject.DodgeAITask.service.GraphService;
 
 @RestController
+@CrossOrigin(origins = "*")
 @RequestMapping("/api")
 public class GraphController {
 
-    @Autowired
-    private GraphService graphService;
+    private final GraphService graphService;
 
-   @GetMapping("/graph/{invoiceNumber}")
-    public GraphResponse getGraph(@PathVariable String invoiceNumber) {
-    return graphService.getGraph(invoiceNumber);
+    public GraphController(GraphService graphService) {
+        this.graphService = graphService;
+    }
+
+    @GetMapping("/graph")
+    public GraphResponse getGraph() {
+        return graphService.buildGraph();
+    }
+
+
+    @GetMapping("/graph/{invoiceId}")
+    public GraphResponse getGraphByInvoice(@PathVariable String invoiceId) {
+    return graphService.buildGraphForInvoice(invoiceId);
 }
+
 }

@@ -1,80 +1,75 @@
 package harunproject.DodgeAITask.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.util.*;
-
 @Service
 public class LLMService {
 
-    private final WebClient webClient = WebClient.create("https://api.groq.com/openai/v1");
+    private final WebClient webClient;
+    private final ObjectMapper mapper = new ObjectMapper();
 
+    // 🔥 application.properties se key aayegi
     @Value("${groq.api.key}")
-    private String API_KEY;
+    private String apiKey;
 
-    public String generateSQL(String userQuery) {
-
-        String prompt = """
-        You are a PostgreSQL SQL generator.
-
-        Rules:
-        - Only generate valid SQL
-        - Table: invoice
-        - Columns: id, invoice_number, customer_name, amount
-        - Return only SQL ending with ;
-
-        User Query:
-        """ + userQuery;
-
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("model", "llama3-8b-8192");
-        requestBody.put("temperature", 0);
-
-        requestBody.put("messages", List.of(
-                Map.of("role", "user", "content", prompt)
-        ));
-
-        try {
-            Map response = webClient.post()
-                    .uri("/chat/completions")
-                    .header("Authorization", "Bearer " + API_KEY)
-                    .header("Content-Type", "application/json")
-                    .bodyValue(requestBody)
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
-
-            Map choice = (Map) ((List) response.get("choices")).get(0);
-            Map messageObj = (Map) choice.get("message");
-
-            String content = (String) messageObj.get("content");
-
-            return extractSQL(content);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "SELECT * FROM invoice;";
-        }
+    public LLMService() {
+        this.webClient = WebClient.builder()
+                .baseUrl("https://api.groq.com/openai/v1")
+                .build();
     }
 
-    private String extractSQL(String content) {
+    public String askLLM(String userQuery) {
+
         try {
-            content = content.trim();
-            String upper = content.toUpperCase();
+            String prompt = """
+            You are a data assistant.
 
-            int start = upper.indexOf("SELECT");
-            int end = upper.indexOf(";");
+            Answer ONLY based on dataset context:
+            Orders → Deliveries → Invoices → Payments
 
-            if (start != -1 && end != -1) {
-                return content.substring(start, end + 1);
+            If question is unrelated, say:
+            "This system only supports dataset queries."
+
+            Question:
+            """ + userQuery;
+
+            String response = webClient.post()
+                    .uri("/chat/completions")
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .bodyValue("""
+                    {
+                      "model": "llama3-8b-8192",
+                      "messages": [
+                        {"role": "user", "content": "%s"}
+                      ]
+                    }
+                    """.formatted(prompt))
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+
+            // 🔥 Safe parsing (no crash 💀)
+            JsonNode json = mapper.readTree(response);
+
+            JsonNode choices = json.get("choices");
+            if (choices != null && choices.size() > 0) {
+                return choices
+                        .get(0)
+                        .get("message")
+                        .get("content")
+                        .asText();
             }
+
+            return "⚠️ No response from LLM";
 
         } catch (Exception e) {
             e.printStackTrace();
+            return "❌ Error calling LLM";
         }
-
-        return "SELECT * FROM invoice;";
     }
 }
